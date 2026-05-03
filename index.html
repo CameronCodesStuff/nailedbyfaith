@@ -201,6 +201,9 @@
   .service-select-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(8px,2vw,12px);margin-bottom:16px;}
   .service-select-card{padding:clamp(11px,3vw,16px);border:1.5px solid #e8e0f0;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;text-align:center;}
   .service-select-card:hover,.service-select-card.selected{border-color:var(--purple-deep);background:var(--purple-light);}
+  .svc-check{position:absolute;top:8px;right:10px;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--pink-deep),var(--purple-deep));color:white;font-size:.65rem;display:flex;align-items:center;justify-content:center;font-weight:700;opacity:0;transition:opacity .2s;}
+  .service-select-card{position:relative;}
+  .service-select-card.selected .svc-check{opacity:1;}
   .svc-icon{font-size:clamp(1.3rem,4vw,1.8rem);margin-bottom:5px;}
   .svc-name{font-size:clamp(.72rem,2vw,.82rem);font-weight:600;color:var(--dark);}
   .svc-price{font-size:clamp(.66rem,1.8vw,.78rem);color:var(--purple-deep);margin-top:2px;}
@@ -494,7 +497,8 @@
       <div class="booking-step" id="bstep4">4. Confirm</div>
     </div>
     <div class="step-panel active" id="stepPanel1">
-      <div style="font-weight:600;color:var(--dark);margin-bottom:12px;font-size:.9rem">Choose a Service</div>
+      <div style="font-weight:600;color:var(--dark);margin-bottom:4px;font-size:.9rem">Choose Your Services</div>
+      <div style="font-size:.78rem;color:var(--mid);margin-bottom:14px">Select all that apply — tap to toggle ✓</div>
       <div class="service-select-grid" id="serviceSelectGrid"></div>
       <button class="btn-full" onclick="bookingNext(2)">Continue →</button>
     </div>
@@ -540,7 +544,7 @@ const db   = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
 // ── CONSTANTS ──
-const ADMIN_EMAIL = 'faithpouwhare2@gmail.com'; 
+const ADMIN_EMAIL = 'faithpouwhare2@gmail.com';
 const ADMIN_UID_KEY = 'nbf_admin_uid';
 
 const services = [
@@ -767,7 +771,7 @@ window.openBooking = () => {
   if (!currentUser.emailVerified && currentUser.email !== ADMIN_EMAIL) {
     showToast('Please verify your email first.','error'); return;
   }
-  booking = { service:null, date:null, time:null, name:currentUser.displayName||'', phone:'', notes:'' };
+  booking = { services:[], date:null, time:null, name:currentUser.displayName||'', phone:'', notes:'' };
   buildServiceSelect();
   goToBookStep(1);
   bookCalDate = new Date();
@@ -791,15 +795,20 @@ function buildServiceSelect() {
   const grid = document.getElementById('serviceSelectGrid'); grid.innerHTML='';
   services.forEach(s => {
     const c = document.createElement('div');
-    c.className = 'service-select-card'+(booking.service===s.name?' selected':'');
-    c.innerHTML = `<div class="svc-icon">${s.icon}</div><div class="svc-name">${s.name}</div><div class="svc-price">${s.price}</div>`;
-    c.onclick = () => { booking.service=s.name; grid.querySelectorAll('.service-select-card').forEach(x=>x.classList.remove('selected')); c.classList.add('selected'); };
+    const sel = booking.services.includes(s.name);
+    c.className = 'service-select-card'+(sel?' selected':'');
+    c.innerHTML = `<div class="svc-check">${sel?'✓':''}</div><div class="svc-icon">${s.icon}</div><div class="svc-name">${s.name}</div><div class="svc-price">${s.price}</div>`;
+    c.onclick = () => {
+      const idx = booking.services.indexOf(s.name);
+      if(idx>-1){ booking.services.splice(idx,1); c.classList.remove('selected'); c.querySelector('.svc-check').textContent=''; }
+      else { booking.services.push(s.name); c.classList.add('selected'); c.querySelector('.svc-check').textContent='✓'; }
+    };
     grid.appendChild(c);
   });
 }
 
 window.bookingNext = async (step) => {
-  if (step===2 && !booking.service) { showToast('Please select a service.','error'); return; }
+  if (step===2 && booking.services.length===0) { showToast('Please select at least one service.','error'); return; }
   if (step===3 && !booking.date)    { showToast('Please select a date.','error'); return; }
   if (step===3 && !booking.time)    { showToast('Please select a time slot.','error'); return; }
   if (step===4) {
@@ -823,9 +832,9 @@ function goToBookStep(n) {
 
 function renderBookingSummary() {
   document.getElementById('bookingSummary').innerHTML=`
-    <div class="booking-summary-row"><span class="summary-label">Service</span><span class="summary-value">${booking.service}</span></div>
+    <div class="booking-summary-row"><span class="summary-label">Services</span><span class="summary-value">${booking.services.join(', ')}</span></div>
     <div class="booking-summary-row"><span class="summary-label">Date</span><span class="summary-value">${formatDate(booking.date)}</span></div>
-    <div class="booking-summary-row"><span class="summary-label">Time</span><span class="summary-value">${booking.time}</span></div>
+    <div class="booking-summary-row"><span class="summary-label">Time</span><span class="summary-value">${to12h(booking.time)}</span></div>
     <div class="booking-summary-row"><span class="summary-label">Name</span><span class="summary-value">${booking.name}</span></div>
     <div class="booking-summary-row"><span class="summary-label">Phone</span><span class="summary-value">${booking.phone}</span></div>
     ${booking.notes?`<div class="booking-summary-row"><span class="summary-label">Notes</span><span class="summary-value">${booking.notes}</span></div>`:''}`;
@@ -845,8 +854,8 @@ window.submitBooking = async () => {
     // Add booking
     await addDoc(collection(db,'bookings'),{
       uid:currentUser.uid, client:booking.name, email:currentUser.email,
-      phone:booking.phone, service:booking.service, date:booking.date,
-      time:booking.time, notes:booking.notes, status:'pending',
+      phone:booking.phone, services:booking.services, service:booking.services.join(', '),
+      date:booking.date, time:booking.time, notes:booking.notes, status:'pending',
       createdAt:new Date().toISOString()
     });
     closeModal('bookingModal');
@@ -889,7 +898,7 @@ function renderTimeSlots(slots){
   wrap.style.display='block'; grid.innerHTML='';
   if(!slots.length){grid.innerHTML='<div style="color:var(--mid);font-size:.85rem;grid-column:1/-1">No available slots for this date.</div>';return;}
   slots.forEach(t=>{
-    const s=document.createElement('div'); s.className='time-slot'+(t===booking.time?' selected':''); s.textContent=t;
+    const s=document.createElement('div'); s.className='time-slot'+(t===booking.time?' selected':''); s.textContent=to12h(t);
     s.onclick=()=>{booking.time=t;grid.querySelectorAll('.time-slot').forEach(x=>x.classList.remove('selected'));s.classList.add('selected');};
     grid.appendChild(s);
   });
@@ -954,7 +963,7 @@ function renderAdminBookings(){
     const actions=b.status==='pending'
       ?`<button class="action-btn btn-accept" onclick="window.updateBooking('${b.id}','accepted')">✓ Accept</button><button class="action-btn btn-deny" onclick="window.updateBooking('${b.id}','denied')">✗ Deny</button>`
       :`<span class="status-badge status-${b.status}">${b.status.charAt(0).toUpperCase()+b.status.slice(1)}</span>`;
-    item.innerHTML=`<div class="booking-info"><div class="booking-client">${b.client||''} <span style="font-weight:400;font-size:.76rem;color:#aaa">· ${b.phone||''}</span></div><div class="booking-details">${b.service} · ${formatDate(b.date)} at ${b.time}${b.notes?' · <em>'+b.notes+'</em>':''}</div></div><div class="booking-actions">${actions}</div>`;
+    item.innerHTML=`<div class="booking-info"><div class="booking-client">${b.client||''}</div><div class="booking-details" style="margin-top:3px"><span style="color:var(--purple-deep);font-weight:500">📞 ${b.phone||'—'}</span></div><div class="booking-details">${Array.isArray(b.services)?b.services.join(', '):(b.service||'')} · ${formatDate(b.date)} at ${to12h(b.time)}${b.notes?' · <em>'+b.notes+'</em>':''}</div></div><div class="booking-actions">${actions}</div>`;
     list.appendChild(item);
   });
 }
@@ -1012,7 +1021,7 @@ function selectAdminDate(ds){
   allTimes.forEach(t=>{
     const s=document.createElement('div'), isBooked=booked.includes(t);
     s.className='admin-time-slot'+(isBooked?' booked-slot':(adminSlotSelections[t]?' enabled':''));
-    s.textContent=t;
+    s.textContent=to12h(t);
     if(isBooked){s.title='Booked';}
     else{s.onclick=()=>{adminSlotSelections[t]=!adminSlotSelections[t];s.classList.toggle('enabled',adminSlotSelections[t]);};}
     grid.appendChild(s);
@@ -1039,6 +1048,15 @@ window.adminCalNext = async () => { adminCalDate.setMonth(adminCalDate.getMonth(
 
 // ── UTILS ──
 function formatDate(str){ if(!str) return ''; return new Date(str+'T00:00:00').toLocaleDateString('en-NZ',{weekday:'short',day:'numeric',month:'long',year:'numeric'}); }
+
+// Convert stored 24h time string "HH:MM" → "h:MM AM/PM"
+function to12h(t){
+  if(!t) return '';
+  const [h,m]=t.split(':').map(Number);
+  const ampm=h<12?'AM':'PM';
+  const hour=h%12||12;
+  return `${hour}:${String(m).padStart(2,'0')} ${ampm}`;
+}
 
 function friendlyError(code){
   const map={'auth/user-not-found':'No account found with this email.','auth/wrong-password':'Incorrect password.','auth/email-already-in-use':'An account with this email already exists.','auth/weak-password':'Password must be at least 6 characters.','auth/invalid-email':'Please enter a valid email address.','auth/too-many-requests':'Too many attempts. Please try again later.','auth/network-request-failed':'Network error. Check your connection.','auth/invalid-credential':'Incorrect email or password.'};
