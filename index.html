@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Nailed by Faith</title>
+<link rel="icon" type="image/png" href="fav.png">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/png" href="fav.png">
 <style>
   :root{
     --pink:#f9c8d9;--pink-deep:#f0a0bf;--pink-light:#fde8f0;
@@ -272,7 +272,26 @@
   .toast.success{border-left-color:#3a8040;}.toast.error{border-left-color:#a04040;}
   @keyframes toastIn{from{opacity:0;transform:translateX(40px);}to{opacity:1;transform:translateX(0);}}
 
-  /* ══ SPINNER ══ */
+  /* ══ MY BOOKINGS MODAL ══ */
+  .my-booking-card{background:white;border-radius:var(--radius);padding:clamp(16px,3vw,22px);box-shadow:var(--shadow-card);border:1px solid rgba(216,200,240,.3);margin-bottom:14px;transition:transform .2s;}
+  .my-booking-card:hover{transform:translateY(-2px);}
+  .my-booking-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap;}
+  .my-booking-service{font-family:'Playfair Display',serif;font-size:clamp(1rem,2.5vw,1.1rem);font-weight:700;color:var(--dark);}
+  .my-booking-meta{font-size:clamp(.78rem,2vw,.85rem);color:var(--mid);margin-top:4px;line-height:1.6;}
+  .my-booking-actions{display:flex;gap:8px;align-items:center;margin-top:12px;}
+  .btn-cancel-booking{padding:8px 16px;border-radius:50px;background:rgba(160,64,64,.08);color:#a04040;border:1px solid rgba(160,64,64,.2);font-size:.78rem;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+  .btn-cancel-booking:hover{background:#a04040;color:white;}
+  .empty-bookings{text-align:center;padding:40px 20px;color:var(--mid);font-family:'Cormorant Garamond',serif;font-style:italic;font-size:1.2rem;}
+  /* Admin remove button */
+  .btn-remove{background:rgba(80,80,80,.07);color:#666;border:1px solid rgba(80,80,80,.15);}.btn-remove:hover{background:#555;color:white;}
+  /* Booking success screen */
+  .booking-success{text-align:center;padding:20px 0;}
+  .booking-success-icon{font-size:3.5rem;margin-bottom:16px;animation:popIn .4s cubic-bezier(.34,1.56,.64,1) both;}
+  @keyframes popIn{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .booking-success-title{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--dark);margin-bottom:8px;}
+  .booking-success-sub{font-size:.88rem;color:var(--mid);line-height:1.6;max-width:320px;margin:0 auto 20px;}
+  .booking-success-note{background:var(--yellow-light);border:1px solid var(--yellow-deep);border-radius:var(--radius-sm);padding:14px 18px;font-size:.82rem;color:#7a6000;display:flex;align-items:flex-start;gap:10px;text-align:left;margin-bottom:20px;}
+  .booking-success-note span{font-size:1.2rem;flex-shrink:0;}
   .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
@@ -524,14 +543,50 @@
     </div>
     <div class="step-panel" id="stepPanel4">
       <div class="alert" id="bookingAlert"></div>
-      <div class="booking-summary" id="bookingSummary"></div>
-      <button class="btn-full" id="submitBookingBtn" onclick="submitBooking()">Send Booking Request ✨</button>
-      <div style="text-align:center;font-size:.74rem;color:#aaa;margin-top:10px">Your request will be reviewed and confirmed by Faith</div>
+      <div id="bookingConfirmView">
+        <div class="booking-summary" id="bookingSummary"></div>
+        <button class="btn-full" id="submitBookingBtn" onclick="submitBooking()">Send Booking Request ✨</button>
+        <div style="text-align:center;font-size:.74rem;color:#aaa;margin-top:10px">Your request will be reviewed and confirmed by Faith</div>
+      </div>
+      <div id="bookingSuccessView" style="display:none">
+        <div class="booking-success">
+          <div class="booking-success-icon">🎉</div>
+          <div class="booking-success-title">Request Sent!</div>
+          <div class="booking-success-sub">Thanks for booking with Nailed by Faith. Faith will review your request shortly.</div>
+          <div class="booking-success-note"><span>📱</span><div>Once your booking is <strong>accepted</strong>, you'll receive a text message confirmation to the number you provided. Keep an eye out!</div></div>
+          <button class="btn-full" onclick="closeModal('bookingModal');openModal('myBookingsModal');loadMyBookings()">View My Bookings →</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ══ FIREBASE ══ -->
+<!-- ══ MY BOOKINGS MODAL ══ -->
+<div class="modal-overlay" id="myBookingsModal">
+  <div class="modal" style="max-width:560px">
+    <button class="modal-close" onclick="closeModal('myBookingsModal')">✕</button>
+    <div class="modal-title">My Appointments 💅</div>
+    <div class="modal-sub">Track the status of your bookings</div>
+    <div id="myBookingsList">
+      <div class="empty-bookings">Loading your bookings...</div>
+    </div>
+    <button class="btn-full" onclick="closeModal('myBookingsModal');openBooking()" style="margin-top:8px">+ Book New Appointment</button>
+  </div>
+</div>
+
+<!-- ══ CONFIRM CANCEL MODAL ══ -->
+<div class="modal-overlay" id="cancelConfirmModal">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="closeModal('cancelConfirmModal')">✕</button>
+    <div class="modal-title" style="font-size:1.3rem">Cancel Booking?</div>
+    <div class="modal-sub">This can't be undone. Your slot will be freed up.</div>
+    <input type="hidden" id="cancelBookingId">
+    <div style="display:flex;gap:12px;margin-top:8px">
+      <button class="btn-full" style="background:white;color:var(--mid);border:1.5px solid #e8e0f0;box-shadow:none;flex:1" onclick="closeModal('cancelConfirmModal')">Keep It</button>
+      <button class="btn-full" id="confirmCancelBtn" style="background:linear-gradient(135deg,#e05080,#a04040);flex:1" onclick="confirmCancelBooking()">Yes, Cancel</button>
+    </div>
+  </div>
+</div>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
@@ -652,6 +707,7 @@ function updateNav(user, isAdmin) {
         <div class="user-avatar" onclick="toggleDropdown()">${photoHTML}</div>
         <div class="dropdown-menu" id="userDropdown">
           <a onclick="openBooking()">✨ Book Now</a>
+          <a onclick="closeDropdown();openModal('myBookingsModal');loadMyBookings()">📋 My Bookings</a>
           ${isAdmin ? '<a onclick="enterAdminPortal()">🔑 Admin Portal</a>' : ''}
           <div class="dropdown-divider"></div>
           <a onclick="signOutUser()">🚪 Log Out</a>
@@ -667,6 +723,10 @@ function updateNav(user, isAdmin) {
 window.toggleDropdown = () => {
   const d = document.getElementById('userDropdown');
   if (d) d.classList.toggle('open');
+};
+window.closeDropdown = () => {
+  const d = document.getElementById('userDropdown');
+  if (d) d.classList.remove('open');
 };
 document.addEventListener('click', e => {
   const d = document.getElementById('userDropdown');
@@ -776,6 +836,9 @@ window.openBooking = () => {
   buildServiceSelect();
   goToBookStep(1);
   bookCalDate = new Date();
+  // Reset success screen
+  document.getElementById('bookingConfirmView').style.display = 'block';
+  document.getElementById('bookingSuccessView').style.display = 'none';
   loadSlotsForMonth(bookCalDate).then(renderBookCal);
   if (document.getElementById('bookName')) document.getElementById('bookName').value = booking.name;
   openModal('bookingModal');
@@ -859,12 +922,13 @@ window.submitBooking = async () => {
       date:booking.date, time:booking.time, notes:booking.notes, status:'pending',
       createdAt:new Date().toISOString()
     });
-    closeModal('bookingModal');
-    showToast('Booking request sent! Faith will confirm shortly. 💅','success');
+    // Show success screen
+    document.getElementById('bookingConfirmView').style.display = 'none';
+    document.getElementById('bookingSuccessView').style.display = 'block';
   } catch(e) {
     showAlert(document.getElementById('bookingAlert'),'error','Something went wrong. Please try again.');
+    setLoading('submitBookingBtn', false);
   }
-  setLoading('submitBookingBtn', false);
 };
 
 // Booking Calendar
@@ -961,9 +1025,9 @@ function renderAdminBookings(){
   list.innerHTML='';
   cachedBookings.forEach(b=>{
     const item=document.createElement('div'); item.className='booking-item';
-    const actions=b.status==='pending'
-      ?`<button class="action-btn btn-accept" onclick="window.updateBooking('${b.id}','accepted')">✓ Accept</button><button class="action-btn btn-deny" onclick="window.updateBooking('${b.id}','denied')">✗ Deny</button>`
-      :`<span class="status-badge status-${b.status}">${b.status.charAt(0).toUpperCase()+b.status.slice(1)}</span>`;
+    const actions = b.status==='pending'
+      ?`<button class="action-btn btn-accept" onclick="window.updateBooking('${b.id}','accepted')">✓ Accept</button><button class="action-btn btn-deny" onclick="window.updateBooking('${b.id}','denied')">✗ Deny</button><button class="action-btn btn-remove" onclick="window.adminRemoveBooking('${b.id}','${b.date}','${b.time}',${b.status==='pending'})">🗑</button>`
+      :`<span class="status-badge status-${b.status}">${b.status.charAt(0).toUpperCase()+b.status.slice(1)}</span><button class="action-btn btn-remove" onclick="window.adminRemoveBooking('${b.id}','${b.date}','${b.time}',${b.status==='pending'})" style="margin-left:4px">🗑 Remove</button>`;
     item.innerHTML=`<div class="booking-info"><div class="booking-client">${b.client||''}</div><div class="booking-details" style="margin-top:3px"><span style="color:var(--purple-deep);font-weight:500">📞 ${b.phone||'—'}</span></div><div class="booking-details">${Array.isArray(b.services)?b.services.join(', '):(b.service||'')} · ${formatDate(b.date)} at ${to12h(b.time)}${b.notes?' · <em>'+b.notes+'</em>':''}</div></div><div class="booking-actions">${actions}</div>`;
     list.appendChild(item);
   });
@@ -986,7 +1050,23 @@ window.updateBooking = async (id, status) => {
   } catch(e){ showToast('Error updating booking.','error'); }
 };
 
-window.switchAdminTab = (tab,btn) => {
+window.adminRemoveBooking = async (id, date, time, isPending) => {
+  if (!confirm('Remove this booking permanently?')) return;
+  try {
+    const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js');
+    await deleteDoc(doc(db,'bookings',id));
+    // Restore slot if pending (accepted bookings consumed the slot already)
+    if (isPending) {
+      const slotRef = doc(db,'slots',date);
+      const slotSnap = await getDoc(slotRef);
+      const times = slotSnap.exists()?(slotSnap.data().times||[]):[];
+      if(!times.includes(time)){times.push(time);times.sort();}
+      await setDoc(slotRef,{date,times});
+      cachedSlots[date]=times;
+    }
+    showToast('Booking removed.','');
+  } catch(e){ showToast('Could not remove booking.','error'); }
+};
   document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
   document.getElementById('adminBookings').classList.toggle('active',tab==='bookings');
   document.getElementById('adminCalendar').classList.toggle('active',tab==='calendar');
@@ -1047,6 +1127,81 @@ window.saveAdminSlots = async () => {
 window.adminCalPrev = async () => { adminCalDate.setMonth(adminCalDate.getMonth()-1); await loadAdminSlotsForMonth(adminCalDate); renderAdminCal(); };
 window.adminCalNext = async () => { adminCalDate.setMonth(adminCalDate.getMonth()+1); await loadAdminSlotsForMonth(adminCalDate); renderAdminCal(); };
 
+// ── MY BOOKINGS ──
+window.loadMyBookings = async () => {
+  if (!currentUser) return;
+  const list = document.getElementById('myBookingsList');
+  list.innerHTML = '<div class="empty-bookings">Loading...</div>';
+  try {
+    const q = query(collection(db,'bookings'), where('uid','==',currentUser.uid), orderBy('createdAt','desc'));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      list.innerHTML = '<div class="empty-bookings">No appointments yet ✨<br><span style="font-size:.85rem;font-style:normal">Book your first one below!</span></div>';
+      return;
+    }
+    list.innerHTML = '';
+    snap.docs.forEach(docSnap => {
+      const b = { id: docSnap.id, ...docSnap.data() };
+      const statusConfig = {
+        pending:  { label:'Pending Review', bg:'var(--yellow)',     color:'#806000', icon:'⏳' },
+        accepted: { label:'Accepted ✓',     bg:'#e8f8e8',          color:'#3a8040', icon:'✅' },
+        denied:   { label:'Not Available',  bg:'#fde8e8',          color:'#a04040', icon:'❌' },
+      };
+      const sc = statusConfig[b.status] || statusConfig.pending;
+      const canCancel = b.status !== 'denied';
+      const card = document.createElement('div');
+      card.className = 'my-booking-card';
+      card.innerHTML = `
+        <div class="my-booking-header">
+          <div class="my-booking-service">${Array.isArray(b.services)?b.services.join(', '):(b.service||'Appointment')}</div>
+          <span class="status-badge" style="background:${sc.bg};color:${sc.color}">${sc.icon} ${sc.label}</span>
+        </div>
+        <div class="my-booking-meta">
+          📅 ${formatDate(b.date)} &nbsp;·&nbsp; 🕐 ${to12h(b.time)}<br>
+          ${b.notes ? `📝 ${b.notes}` : ''}
+        </div>
+        ${b.status==='accepted'?`<div style="margin-top:10px;font-size:.8rem;background:var(--blue-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:10px 14px;color:#4060a0">📱 A text confirmation will be sent to <strong>${b.phone}</strong></div>`:''}
+        ${b.status==='pending'?`<div style="margin-top:10px;font-size:.8rem;background:var(--yellow-light);border:1px solid var(--yellow-deep);border-radius:var(--radius-sm);padding:10px 14px;color:#7a6000">⏳ Faith will review your request and you'll be notified by text.</div>`:''}
+        <div class="my-booking-actions">
+          ${canCancel ? `<button class="btn-cancel-booking" onclick="promptCancelBooking('${b.id}','${b.date}','${b.time}')">Cancel Booking</button>` : ''}
+        </div>`;
+      list.appendChild(card);
+    });
+  } catch(e) {
+    list.innerHTML = '<div class="empty-bookings">Could not load bookings. Please try again.</div>';
+    console.error(e);
+  }
+};
+
+window.promptCancelBooking = (id, date, time) => {
+  document.getElementById('cancelBookingId').value = JSON.stringify({id,date,time});
+  openModal('cancelConfirmModal');
+};
+
+window.confirmCancelBooking = async () => {
+  const raw = document.getElementById('cancelBookingId').value;
+  const {id, date, time} = JSON.parse(raw);
+  setLoading('confirmCancelBtn', true);
+  try {
+    // Delete the booking
+    const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js');
+    await deleteDoc(doc(db,'bookings',id));
+    // Restore the time slot
+    const slotRef = doc(db,'slots',date);
+    const slotSnap = await getDoc(slotRef);
+    const times = slotSnap.exists() ? (slotSnap.data().times||[]) : [];
+    if (!times.includes(time)) { times.push(time); times.sort(); }
+    await setDoc(slotRef, {date, times});
+    cachedSlots[date] = times;
+    closeModal('cancelConfirmModal');
+    showToast('Booking cancelled.', '');
+    loadMyBookings();
+  } catch(e) {
+    showToast('Could not cancel. Please try again.', 'error');
+  }
+  setLoading('confirmCancelBtn', false);
+};
+
 // ── UTILS ──
 function formatDate(str){ if(!str) return ''; return new Date(str+'T00:00:00').toLocaleDateString('en-NZ',{weekday:'short',day:'numeric',month:'long',year:'numeric'}); }
 
@@ -1100,10 +1255,14 @@ window.bookingNext  = window.bookingNext;
 window.bookCalPrev  = window.bookCalPrev;
 window.bookCalNext  = window.bookCalNext;
 window.updateBooking= window.updateBooking;
+window.adminRemoveBooking = window.adminRemoveBooking;
 window.switchAdminTab=window.switchAdminTab;
 window.saveAdminSlots=window.saveAdminSlots;
 window.adminCalPrev = window.adminCalPrev;
 window.adminCalNext = window.adminCalNext;
+window.loadMyBookings = window.loadMyBookings;
+window.promptCancelBooking = window.promptCancelBooking;
+window.confirmCancelBooking = window.confirmCancelBooking;
 </script>
 </body>
 </html>
