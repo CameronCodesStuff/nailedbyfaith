@@ -748,8 +748,8 @@ document.addEventListener('click', e => {
 // ── MODAL SYSTEM ──
 window.openModal = id => { document.getElementById(id).classList.add('open'); document.body.style.overflow='hidden'; };
 window.closeModal = id => { document.getElementById(id).classList.remove('open'); document.body.style.overflow=''; };
-window.switchModal = (a,b) => { closeModal(a); setTimeout(()=>openModal(b),220); };
-document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) closeModal(o.id); }));
+window.switchModal = (a,b) => { window.closeModal(a); setTimeout(()=>window.openModal(b),220); };
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) window.closeModal(o.id); }));
 
 // ── AUTH HANDLERS ──
 window.handleLogin = async () => {
@@ -761,12 +761,13 @@ window.handleLogin = async () => {
   setLoading('loginBtn', true);
   try {
     await signInWithEmailAndPassword(auth, email, pass);
-    closeModal('loginModal');
+    window.closeModal('loginModal');
     showToast('Welcome back! 💅','success');
   } catch(e) {
     showAlert(al,'error', friendlyError(e.code));
+  } finally {
+    setLoading('loginBtn', false);
   }
-  setLoading('loginBtn', false);
 };
 
 window.handleRegister = async () => {
@@ -784,12 +785,13 @@ window.handleRegister = async () => {
     await updateProfile(cred.user, { displayName: first+' '+last });
     await sendEmailVerification(cred.user);
     await setDoc(doc(db,'users',cred.user.uid), { name:first+' '+last, email, createdAt:new Date().toISOString() });
-    closeModal('registerModal');
+    window.closeModal('registerModal');
     showToast('Account created! Check your email to verify. 🌸','success');
   } catch(e) {
     showAlert(al,'error', friendlyError(e.code));
+  } finally {
+    setLoading('registerBtn', false);
   }
-  setLoading('registerBtn', false);
 };
 
 window.handleGoogleSignIn = async () => {
@@ -811,8 +813,9 @@ window.handlePasswordReset = async () => {
     showAlert(al,'success','Reset link sent! Check your inbox ✉️');
   } catch(e) {
     showAlert(al,'error', friendlyError(e.code));
+  } finally {
+    setLoading('resetBtn', false);
   }
-  setLoading('resetBtn', false);
 };
 
 window.resendVerification = async () => {
@@ -1233,42 +1236,23 @@ window.showToast = (msg,type) => {
   setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400);},3500);
 };
 
-function setLoading(id,loading){
-  const btn=document.getElementById(id); if(!btn) return;
-  btn.disabled=loading;
-  if(loading){ btn._orig=btn.innerHTML; btn.innerHTML='<div class="spinner"></div>'; }
-  else{ btn.innerHTML=btn._orig||btn.innerHTML; }
+function setLoading(id, loading) {
+  const btn = document.getElementById(id); if (!btn) return;
+  if (loading) {
+    btn.disabled = true;
+    btn.dataset.orig = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner"></div>';
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.orig) { btn.innerHTML = btn.dataset.orig; delete btn.dataset.orig; }
+  }
 }
 
 // Scroll reveal
 const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');}),{threshold:.12});
 document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
 
-// Expose needed functions to global scope for inline onclick handlers
-window.openBooking = window.openBooking;
-window.openModal   = openModal;
-window.closeModal  = closeModal;
-window.switchModal = switchModal;
-window.handleLogin = window.handleLogin;
-window.handleRegister = window.handleRegister;
-window.handleGoogleSignIn = window.handleGoogleSignIn;
-window.handlePasswordReset = window.handlePasswordReset;
-window.resendVerification  = window.resendVerification;
-window.signOutUser  = window.signOutUser;
-window.enterAdminPortal = window.enterAdminPortal;
-window.leaveAdminPortal = window.leaveAdminPortal;
-window.bookingNext  = window.bookingNext;
-window.bookCalPrev  = window.bookCalPrev;
-window.bookCalNext  = window.bookCalNext;
-window.updateBooking= window.updateBooking;
-window.adminRemoveBooking = window.adminRemoveBooking;
-window.switchAdminTab=window.switchAdminTab;
-window.saveAdminSlots=window.saveAdminSlots;
-window.adminCalPrev = window.adminCalPrev;
-window.adminCalNext = window.adminCalNext;
-window.loadMyBookings = window.loadMyBookings;
-window.promptCancelBooking = window.promptCancelBooking;
-window.confirmCancelBooking = window.confirmCancelBooking;
+// selectAdminDate is a plain function called internally only — no window exposure needed
 </script>
 </body>
 </html>
