@@ -590,7 +590,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, updateDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc, collection, query, where, orderBy, getDocs, updateDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 // ── CONFIG (Firebase API keys are public by design — secure via Security Rules + Authorised Domains) ──
 const _c = atob('eyJhcGlLZXkiOiJBSXphU3lCSmhLYWt2N1JwRi1JSXhDRmVyWjE3WkRkU2puWnl2TTAiLCJhdXRoRG9tYWluIjoibmFpbGVkYnlmYWl0aC1hODJjMC5maXJlYmFzZWFwcC5jb20iLCJwcm9qZWN0SWQiOiJuYWlsZWRieWZhaXRoLWE4MmMwIiwic3RvcmFnZUJ1Y2tldCI6Im5haWxlZGJ5ZmFpdGgtYTgyYzAuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNTU0MzU5NzU0Mjg0IiwiYXBwSWQiOiIxOjU1NDM1OTc1NDI4NDp3ZWI6MTIwM2NiY2FmYzY1OTlmYjZmMGI4OSIsIm1lYXN1cmVtZW50SWQiOiJHLTBUSDBOS1lDWFYifQ==');
@@ -1053,7 +1053,6 @@ window.updateBooking = async (id, status) => {
 window.adminRemoveBooking = async (id, date, time, isPending) => {
   if (!confirm('Remove this booking permanently?')) return;
   try {
-    const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js');
     await deleteDoc(doc(db,'bookings',id));
     // Restore slot if pending (accepted bookings consumed the slot already)
     if (isPending) {
@@ -1067,6 +1066,8 @@ window.adminRemoveBooking = async (id, date, time, isPending) => {
     showToast('Booking removed.','');
   } catch(e){ showToast('Could not remove booking.','error'); }
 };
+
+window.switchAdminTab = (tab,btn) => {
   document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
   document.getElementById('adminBookings').classList.toggle('active',tab==='bookings');
   document.getElementById('adminCalendar').classList.toggle('active',tab==='calendar');
@@ -1184,7 +1185,6 @@ window.confirmCancelBooking = async () => {
   setLoading('confirmCancelBtn', true);
   try {
     // Delete the booking
-    const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js');
     await deleteDoc(doc(db,'bookings',id));
     // Restore the time slot
     const slotRef = doc(db,'slots',date);
