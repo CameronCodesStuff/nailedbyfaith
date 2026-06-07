@@ -917,29 +917,43 @@ function renderBookingSummary() {
 
 window.submitBooking = async () => {
   setLoading('submitBookingBtn', true);
-  try {
-    // Remove slot
-    const slotRef = doc(db,'slots',booking.date);
-    const slotSnap = await getDoc(slotRef);
-    if (slotSnap.exists()) {
-      const times = (slotSnap.data().times||[]).filter(t=>t!==booking.time);
-      await updateDoc(slotRef,{times});
-      cachedSlots[booking.date] = times;
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      // Remove slot
+      const slotRef = doc(db,'slots',booking.date);
+      const slotSnap = await getDoc(slotRef);
+      if (slotSnap.exists()) {
+        const times = (slotSnap.data().times||[]).filter(t=>t!==booking.time);
+        await updateDoc(slotRef,{times});
+        cachedSlots[booking.date] = times;
+      }
+      // Add booking
+      await addDoc(collection(db,'bookings'),{
+        uid:currentUser.uid, client:booking.name, email:currentUser.email,
+        phone:booking.phone, services:booking.services, service:booking.services.join(', '),
+        date:booking.date, time:booking.time, notes:booking.notes, status:'pending',
+        createdAt:new Date().toISOString()
+      });
+      // Show success screen
+      document.getElementById('bookingConfirmView').style.display = 'none';
+      document.getElementById('bookingSuccessView').style.display = 'block';
+      return;
+    } catch(e) {
+      console.error(`Booking submission error (attempt ${attempt}):`, e);
+      const isNetworkError = e?.code === 'unavailable' || e?.message?.includes('Fetch failed') || e?.message?.includes('network');
+      if (attempt < maxAttempts && isNetworkError) {
+        showAlert(document.getElementById('bookingAlert'),'error',`Connection issue, retrying… (${attempt}/${maxAttempts})`);
+        await new Promise(r => setTimeout(r, 1500 * attempt));
+      } else {
+        const msg = isNetworkError
+          ? 'Connection failed. Please check your internet and try again.'
+          : 'Something went wrong. Please try again.';
+        showAlert(document.getElementById('bookingAlert'),'error', msg);
+        setLoading('submitBookingBtn', false);
+        return;
+      }
     }
-    // Add booking
-    await addDoc(collection(db,'bookings'),{
-      uid:currentUser.uid, client:booking.name, email:currentUser.email,
-      phone:booking.phone, services:booking.services, service:booking.services.join(', '),
-      date:booking.date, time:booking.time, notes:booking.notes, status:'pending',
-      createdAt:new Date().toISOString()
-    });
-    // Show success screen
-    document.getElementById('bookingConfirmView').style.display = 'none';
-    document.getElementById('bookingSuccessView').style.display = 'block';
-  } catch(e) {
-    console.error('Booking submission error:', e);
-    showAlert(document.getElementById('bookingAlert'),'error','Something went wrong. Please try again.');
-    setLoading('submitBookingBtn', false);
   }
 };
 
