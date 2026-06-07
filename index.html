@@ -937,6 +937,7 @@ window.submitBooking = async () => {
     document.getElementById('bookingConfirmView').style.display = 'none';
     document.getElementById('bookingSuccessView').style.display = 'block';
   } catch(e) {
+    console.error('Booking submission error:', e);
     showAlert(document.getElementById('bookingAlert'),'error','Something went wrong. Please try again.');
     setLoading('submitBookingBtn', false);
   }
