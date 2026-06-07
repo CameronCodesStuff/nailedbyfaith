@@ -589,7 +589,7 @@
 </div>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc, collection, query, where, orderBy, getDocs, updateDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 // ── CONFIG (Firebase API keys are public by design — secure via Security Rules + Authorised Domains) ──
@@ -794,30 +794,25 @@ window.handleRegister = async () => {
 
 window.handleGoogleSignIn = async () => {
   try {
-    await signInWithRedirect(auth, googleProvider);
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    const userDoc = await getDoc(doc(db,'users',user.uid));
+    if (!userDoc.exists()) {
+      await setDoc(doc(db,'users',user.uid), {
+        name: user.displayName||'',
+        email: user.email,
+        createdAt: new Date().toISOString()
+      });
+    }
+    window.closeModal('loginModal');
+    window.closeModal('registerModal');
+    showToast('Welcome, '+(user.displayName||'there')+'! 💅','success');
   } catch(e) {
-    showToast(friendlyError(e.code),'error');
+    if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+      showToast(friendlyError(e.code),'error');
+    }
   }
 };
-
-// Handle Google redirect result on page load
-getRedirectResult(auth).then(async result => {
-  if (!result) return;
-  const user = result.user;
-  const userDoc = await getDoc(doc(db,'users',user.uid));
-  if (!userDoc.exists()) {
-    await setDoc(doc(db,'users',user.uid), {
-      name: user.displayName||'',
-      email: user.email,
-      createdAt: new Date().toISOString()
-    });
-  }
-  showToast('Welcome, '+(user.displayName||'there')+'! 💅','success');
-}).catch(e => {
-  if (e.code && e.code !== 'auth/popup-closed-by-user') {
-    showToast(friendlyError(e.code),'error');
-  }
-});
 
 window.handlePasswordReset = async () => {
   const email = document.getElementById('resetEmail').value.trim();
